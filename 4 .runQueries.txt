@@ -1,0 +1,48 @@
+SELECT COUNT(*) FROM flights;
+
+
+SELECT *
+FROM flights
+ORDER BY random()
+LIMIT 10;
+
+This query actually assigns a random number to all 96 million rows, sorts them by the random number and then returns the first 10 results.
+
+
+
+Now that you have the data loaded, the next step is to perform queries to find underlying patterns in the data and to help drive business decisions.
+
+
+SELECT
+  carrier,
+  SUM (departures)
+FROM flights
+GROUP BY carrier
+ORDER BY 2 DESC
+LIMIT 10;
+
+
+Run the above query.
+Question: Who are the top 3 carriers by number of departures?
+
+Change departures to 
+passengers
+ and run it again to view top carriers by passengers carried.
+Question: Who are the top 3 carriers by passengers carried?
+
+Change departures to 
+miles
+ and run it again to view top carriers by miles flown.
+Question: Who are the top 3 carriers by miles flown?
+
+Change departures to 
+passengers * miles
+ and run it again to view top carriers by passenger-miles.
+Question: Who are the top 3 carriers by passenger-miles?
+
+Change departures to 
+freight_pounds
+ and run it again to view top carriers by freight transported.
+Question: Who are the top 3 carriers of freight? (You should be able to guess this one!)
+
+Each of these queries is performing calculations against almost 100 million rows of data, but they each take only a few seconds to run. Adding additional compute nodes will make the queries run even faster.

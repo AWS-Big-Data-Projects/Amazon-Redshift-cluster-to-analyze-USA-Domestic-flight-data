@@ -1,0 +1,56 @@
+In this task, you will create a Table in Amazon Redshift. Tables are used to store a particular set of information.
+
+Copy and paste the following text into pgweb (above the Run Query button):
+
+CREATE TABLE flights (
+  year           smallint,
+  month          smallint,
+  day            smallint,
+  carrier        varchar(80) DISTKEY,
+  origin         char(3),
+  dest           char(3),
+  aircraft_code  char(3),
+  miles          int,
+  departures     int,
+  minutes        int,
+  seats          int,
+  passengers     int,
+  freight_pounds int
+);
+
+
+A new flights table will appear on the left of the screen, under the Tables heading.
+
+You can now load data into the table. The data has already been placed into an Amazon S3 bucket and can be loaded into Amazon Redshift by using the COPY command.
+
+
+COPY flights
+FROM 's3://us-west-2-aws-training/awsu-spl/spl-17/4.2.9.prod/data/flights-usa'
+IAM_ROLE 'INSERT-YOUR-REDSHIFT-ROLE'    #Replace INSERT-YOUR-REDSHIFT-ROLE in the third line with the RedshiftRole value shown to the left of these instructions
+GZIP
+DELIMITER ','
+REMOVEQUOTES
+REGION 'us-west-2';
+
+
+The COPY command is used to load data into Amazon Redshift:
+
+FROM: Indicates where the data is located
+IAM_ROLE: Provides the permissions to access the data being loaded
+GZIP: Indicates that the data has been compressed (zipped) – Amazon Redshift will automatically decompress the data when it is loaded
+DELIMITER: Indicates that data items are separated by a comma
+REMOVEQUOTES: Tells Amazon Redshift to remove quotation marks that are included in the data
+REGION: Indicates which AWS region contains the S3 bucket
+The data being loaded consists of:
+
+23 data files in CSV format (one for each year from 1990 - 2012)
+Comprising 6 GB of data
+Compressed with GZIP down to only 700 MB of storage
+The data files are being loaded in parallel from Amazon S3. This is the most efficient way to load data into Amazon Redshift since the load process is distributed across multiple slices across all available nodes.
+
+Each slice of a compute node is allocated a portion of the node's memory and disk space, where it processes a portion of the workload assigned to the node. The leader node manages distributing data to the slices and apportions the workload for any queries or other database operations to the slices. The slices then work in parallel to complete the operation.
+
+When you create a table, you can optionally specify one column as the distribution key. When the table is loaded with data, the rows are distributed to the node slices according to the distribution key. Choosing a good distribution key enables Amazon Redshift to use parallel processing to load data and execute queries efficiently.
+
+The CREATE TABLE command you ran earlier designated the carrier (airline) field as the Distribution Key (DISTKEY). This means the data will be split between the all available slices and nodes, but all data related to a particular carrier will always reside on the same slice. This improves processing speed when performing operations on the carrier field, such as GROUP BY and JOIN operations.
+

@@ -1,0 +1,244 @@
+You can use the EXPLAIN command to view how Amazon Redshift processes queries.
+
+Run this query:
+ Use the Run Query button (not the Explain Query button).
+
+
+SET enable_result_cache_for_session TO OFF;
+
+EXPLAIN
+SELECT
+  aircraft,
+  SUM(departures) AS trips
+FROM flights
+JOIN aircraft using (aircraft_code)
+GROUP BY aircraft
+ORDER BY trips DESC
+LIMIT 10;
+
+
+It is the same the previous query, but is prefixed by the EXPLAIN command.
+
+This command will return an Explain Plan similar to this:
+
+XN Limit (cost=1000156830987.88..1000156830987.90 rows=10 width=29)
+ -> XN Merge (cost=1000156830987.88..1000156830988.84 rows=383 width=29)
+  Merge Key: sum(flights.departures)
+  -> XN Network (cost=1000156830987.88..1000156830988.84 rows=383 width=29)
+    Send to leader
+    -> XN Sort (cost=1000156830987.88..1000156830988.84 rows=383 width=29)
+     Sort Key: sum(flights.departures)
+     -> XN HashAggregate (cost=156830970.49..156830971.44 rows=383 width=29)
+       -> XN Hash Join DS_BCAST_INNER (cost=4.79..156346841.73 rows=96825752 width=29)
+        Hash Cond: ("outer".aircraft_code = "inner".aircraft_code)
+        -> XN Seq Scan on flights (cost=0.00..968257.52 rows=96825752 width=11)
+        -> XN Hash (cost=3.83..3.83 rows=383 width=32)
+          -> XN Seq Scan on aircraft (cost=0.00..3.83 rows=383 width=32)
+
+
+The plan shows the logical steps that Amazon Redshift will perform when running the query. Reading the Explain Plan from the bottom up, it displays a breakdown of logical operations needed to perform the query as well as an indication of their relative processing cost and the amount of data that needs to be processed. By analyzing the plan, you can often identify opportunities to improve query performance.
+
+In traditional databases, a sequential scan (Seq Scan) across many rows of data can be very inefficient and is normally improved by adding an index. However, Amazon Redshift does not use indexes, yet is able to perform extremely fast queries across huge quantities of data – in this case, scanning over 96 million rows in a few seconds.
+
+
+
+Data Compression & Column-based Storage
+Data in Amazon Redshift is stored as columns. This is faster than storing data as rows, since most queries only require a few columns of data. It also allows Amazon Redshift to compress data within each column.
+
+When data was loaded with the COPY command earlier in this lab, Amazon Redshift performed a compression analysis to identify the optimal way to store each column. You can view the results of the analysis by using the ANALYZE COMPRESSION command.
+
+Run this command to analyze the data stored in the flights table:
+
+ANALYZE COMPRESSION flights;
+
+Amazon Redshift will display recommended compression settings for the data.
+
+Compression is a column-level operation that reduces the size of data when it is stored. Possible compression methods are:
+
+Byte dictionary: A method of reference up to 256 possible values in a single byte. Ideal for fields with few, but frequently repeated, values such as Country names.
+Delta: Compresses data by recording the difference between values that follow each other in the column.
+LZO: Provides a very high compression ratio with good performance. Works well for columns that store very long character strings, especially free form text, such as product descriptions, user comments, or JSON strings.
+Mostly: Compresses the majority of the values in the column to a smaller standard storage size.
+Run-length: Replaces a value that is repeated consecutively with a token that consists of the value and a count of the number of consecutive occurrences (the length of the run). Best suited to a table in which data values are often repeated consecutively, for example, when the table is sorted by those values.
+Text: Compresses VARCHAR columns in which the same words recur often.
+Zstandard: Provides a high compression ratio with very good performance across diverse data sets. Works especially well with CHAR and VARCHAR columns that store a wide range of long and short strings, such as product descriptions, user comments, logs, and JSON strings.
+Raw: Uncompressed
+When data is compressed, information can be retrieved from disk faster. Compression conserves storage space, reduces the amount of disk I/O and therefore improves query performance.
+
+
+Creating tables from other tables
+It is often necessarily to manipulate data to make the information more meaningful. Amazon Redshift has the ability to create new tables based upon data from existing tables.
+
+For example, if you want to closely analyze data on passengers who fly to Las Vegas, you can create a table with only those flights that flew to Las Vegas.
+
+You will now load a table that converts 3-digit airport codes (eg ‘LAS’) into easily-readable city names (‘Las Vegas’).
+
+Run this query create a new table for airport information:
+
+
+CREATE TABLE airports (
+  airport_code CHAR(3) SORTKEY,
+  airport      varchar(100)
+);
+
+A new airports table will appear in the left-side list of tables.
+
+Run this command, replacing INSERT-YOUR-REDSHIFT-ROLE with the RedshiftRole value shown to the left of these instructions:
+
+COPY airports
+FROM 's3://us-west-2-aws-training/awsu-spl/spl-17/4.2.9.prod/data/lookup_airports.csv'
+IAM_ROLE 'INSERT-YOUR-REDSHIFT-ROLE'
+IGNOREHEADER 1
+DELIMITER ','
+REMOVEQUOTES
+TRUNCATECOLUMNS
+REGION 'us-west-2';
+
+
+This loads a list of 6,265 airports.
+
+Next, combine the flights and airports information into a new table that only including flights that went to Las Vegas.
+
+Run this query create a new table about Las Vegas flights:
+CREATE TABLE vegas_flights
+  DISTKEY (origin)
+  SORTKEY (origin)
+AS
+SELECT
+  flights.*,
+  airport
+FROM flights
+JOIN airports ON origin = airport_code
+WHERE dest = 'LAS';
+
+content_copy
+A new vegas_flights table will appear in the left-side list of tables.
+
+Queries can now be run against this new vegas_flights table.
+
+Run this query to discover from where the most popular flights to Las Vegas originate:
+SELECT
+  airport,
+  to_char(SUM(passengers), '999,999,999') as passengers
+FROM vegas_flights
+GROUP BY airport
+ORDER BY SUM(passengers) desc
+LIMIT 10;
+
+content_copy
+Question: Which is the airport that sends the most passengers to Las Vegas?
+
+This query also demonstrates use of the PostgreSQL 
+to_char
+ function that formats output text in a human-friendly format.
+
+Creating new tables in this manner can improve performance since queries only need to scan a subset of data.
+
+Examining Disk Space and Data Distribution
+Data in Amazon Redshift is distributed across multiple nodes and hard disks.
+
+Run this query to see much disk capacity has been used:
+SELECT
+  owner AS node,
+  diskno,
+  used,
+  capacity,
+  used/capacity::numeric * 100 as percent_used
+FROM stv_partitions
+WHERE host = node
+ORDER BY 1, 2;
+
+content_copy
+The output shows:
+
+Node: The node within the cluster.
+Diskno: The disk number. Nodes can have multiple drives, allowing data to be accessed in parallel.
+Used: Megabytes of disk space used.
+Capacity: Available disk space. There is 160GB per node, but extra is provided for database replication.
+Percent_used: Percent of disk space used. The flight data is occupying less than 0.5% of available disk space.
+Disk usage is also available on a per-table basis.
+
+Run this query to see how much space is taken by each of the data tables:
+SELECT
+  name,
+  count(*)
+FROM stv_blocklist
+JOIN (SELECT DISTINCT name, id as tbl from stv_tbl_perm) USING (tbl)
+GROUP BY name;
+
+content_copy
+The amounts shown are in MB. The flights table consumes 1548 MB (1.5 GB). Each Amazon Redshift dc2.large node can hold 160GB, which is one hundred times the amount of data currently in use.
+
+Task 7: Explore the Amazon Redshift Console
+All your interactions with Amazon Redshift so far have been via SQL.
+
+Amazon Redshift also has a management console that provides insight into operation of the system.
+
+Return to your web browser tab showing the Amazon Redshift console.
+
+In the left navigation pane, click CLUSTERS.
+
+Click lab.
+
+Click the Query monitoring tab.
+
+Amazon Redshift maintains information about every data load and query performed.
+
+Click the refresh button next to Query monitoring.
+
+In the Queries and loads window, click on one of the queries.
+
+The information above will be updated to include information such as:
+
+The duration of the query.
+The user that ran the query.
+The SQL used for the query.
+Scroll down to the Query details section.
+
+Click one of the query job numbers for COPY flights FROM… in the SQL column.
+
+Information will be displayed showing:
+
+The SQL used to run the query.
+The Total runtime.
+The Rows returned.
+The Total data scanned.
+Click Query plan tab.
+This shows a chart that displays system performance during the load. This information can be used to diagnose problems and to monitor system performance during regular load processes.
+
+In the left navigation pane, click CLUSTERS.
+
+Click lab.
+
+Click Cluster performance to view information about the cluster.
+
+Click on Alarms, here you will see a section for CloudWatch Alarms, which can send a notification based upon cluster metrics, such as available disk space or the health of the cluster.
+
+Snapshots
+Snapshots are point-in-time backups of a cluster. You can create snapshots automatically or manually. Amazon Redshift stores these snapshots in Amazon S3. If you need to restore a cluster, Amazon Redshift creates a new cluster and imports data from the snapshot that you specify.
+
+Amazon Redshift periodically takes automated snapshots and deletes the automated snapshot at the end of a retention period that you specify.
+
+You can also take a manual snapshot whenever you wish. Manual snapshots are retained even after you delete your cluster. Manual snapshots accrue storage charges, so it is important that you manually delete them if you no longer need them.
+
+To reduce backup times and Amazon S3 storage requirements, Amazon Redshift uses incremental backups. When a snapshot is taken, the backup records the cluster changes since the last snapshot.
+
+Amazon Redshift provides free storage for snapshots that is equal to the storage capacity of your cluster until you delete the cluster. You can use this free storage for automated or manual snapshots. After the free backup storage limit is reached, you are charged for any additional storage at the normal rate.
+
+Click the Maintenance tab.
+You should see that a an automatic snapshot was created.
+
+Exporting Data
+Data can also be exported to Amazon S3 with the UNLOAD command. The data can then be used in other systems, such as Amazon DynamoDB, your own applications or loaded into another Amazon Redshift cluster. The command accepts an SQL query and can export the data into fixed-width or delimited text files and can also be compressed with GZIP and encrypted.
+
+Delete the Cluster
+This lab is now complete. The final step is to shut down the cluster.
+
+In the Actions menu, click Delete.
+
+De-select Create final snapshot.
+
+Click Delete cluster
+
+Your cluster will now be deleted.
+

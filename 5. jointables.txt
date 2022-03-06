@@ -1,0 +1,47 @@
+n this task, you will load more data and then run queries that join information between tables.
+
+Run this query to create a new table for aircraft information:
+CREATE TABLE aircraft (
+  aircraft_code CHAR(3) SORTKEY,
+  aircraft      VARCHAR(100)
+);
+
+A new aircraft table will appear in the left-side table list.
+
+Paste the following text into pgweb but do not run it yet:
+COPY aircraft
+FROM 's3://us-west-2-aws-training/awsu-spl/spl-17/4.2.9.prod/data/lookup_aircraft.csv'
+IAM_ROLE 'INSERT-YOUR-REDSHIFT-ROLE'
+IGNOREHEADER 1
+DELIMITER ','
+REMOVEQUOTES
+TRUNCATECOLUMNS
+REGION 'us-west-2';
+
+
+Run the query.
+
+This will load 383 different types of aircraft flown by the carriers.
+
+Run this query to view 10 random rows of aircraft data:
+SELECT *
+FROM aircraft
+ORDER BY random()
+LIMIT 10;
+
+content_copy
+The table contains an aircraft code and an aircraft description. The two tables can be joined together to provide useful information:
+
+Run this query to view the most-flown types of aircraft:
+SELECT
+  aircraft,
+  SUM(departures) AS trips
+FROM flights
+JOIN aircraft using (aircraft_code)
+GROUP BY aircraft
+ORDER BY trips DESC
+LIMIT 10;
+
+content_copy
+The results show the friendly name of aircraft that are flown on most trips. The JOIN command links the flight table with the aircraft table.
+

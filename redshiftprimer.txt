@@ -1,0 +1,39 @@
+Nodes & Clusters
+An Amazon Redshift data warehouse is a collection of computing resources called nodes. This collection of nodes is called a cluster. When you provision a cluster, you specify the type and the number of nodes that will make up the cluster. The node type determines the storage size, memory, CPU, and price of each node in the cluster:
+
+Scalability
+If your storage and performance needs change after you initially provision your cluster, you can always scale the cluster in or out by adding or removing nodes, scale the cluster up or down by specifying a different node type, or you can do both. Resizing the cluster in either way involves minimal downtime. Resizing replaces the old cluster at the end of the resize operation. When you submit a resize request, the source cluster remains in read-only mode until the resize operation is complete.
+
+Parallel Processing
+Amazon Redshift distributes workload to each node in a cluster and processes work in parallel, allowing processing speed to scale in addition to storage.
+
+Columnar Storage
+Columnar storage for database tables is an important factor in optimizing analytic query performance because it drastically reduces the overall disk I/O requirements and reduces the amount of data you need to load from disk.
+
+Rather than storing data values together for a whole row, Amazon Redshift stores data by column. This means that operations on a column require less disk I/O.
+
+
+Compression
+Compression is a column-level operation that reduces the size of data when it is stored. Compression conserves storage space and reduces the size of data that is read from storage, which reduces the amount of disk I/O and therefore improves query performance.
+
+
+Snapshots as Backups
+Snapshots are point-in-time backups of a cluster. You can create snapshots automatically or manually. Amazon Redshift stores these snapshots internally in Amazon S3 using an encrypted Secure Sockets Layer (SSL) connection. If you need to restore a cluster, Amazon Redshift creates a new cluster and imports data from the snapshot that you specify.
+
+Integrates With Existing Business Intelligence Tools
+Amazon Redshift uses industry-standard SQL and is accessed using standard JDBC and ODBC drivers. Your existing Business Intelligence tools can easily integrate with Amazon Redshift.
+
+
+The typical process for loading data into Amazon Redshift is:
+
+Data is exported from a source system (for example, a company database).
+The data is placed into an Amazon S3 bucket, preferably in a compressed format to save storage space.
+The data is copied into Amazon Redshift tables via the COPY command.
+The SQL client is used to query Amazon Redshift.
+The results of the query will be returned to the SQL client.
+
+
+In this lab, you will be loading USA domestic airline data for analysis. The data has been obtained from the United States Department of Transportation’s Bureau of Transportation Statistics.
+
+The transport data has already been placed into an Amazon S3 bucket in a compressed format. This lab will lead you through the steps of loading the data into an Amazon Redshift cluster and then running queries to analyze the data.
+

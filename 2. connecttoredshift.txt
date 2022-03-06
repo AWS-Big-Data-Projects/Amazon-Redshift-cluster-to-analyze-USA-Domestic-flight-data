@@ -1,0 +1,25 @@
+In this task, you will use a web-based PostgreSQL client ("pgweb") to connect to Redshift.
+
+Copy the pgweb IP address shown to the left of these instructions.
+This is the IP address of a web server that is running the pgweb software.
+
+Open a new tab in your web browser, paste the IP address and hit Enter.
+You will be presented with the pgweb login screen.
+
+Configure the following settings:
+Username: 
+master
+Password: 
+Redshift123
+Database: 
+lab
+Port: 
+5439
+ (which is different to the default value)
+
+
+
+ To the right of the screen, Copy the Endpoint to your clipboard.
+The endpoint will look similar to: lab.czvdbh5dsk9y.us-west-2.redshift.amazonaws.com:5439/lab
+
+Remove the :5439/lab ending so that the Host value ends with: .com

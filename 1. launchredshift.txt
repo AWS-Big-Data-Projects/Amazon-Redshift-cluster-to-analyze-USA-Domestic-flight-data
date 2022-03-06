@@ -1,0 +1,26 @@
+create cluster with below config-
+
+Cluster identifier: lab
+Node type: dc2.large
+Nodes: 2
+
+This lab uses the dc2.large node size, which has 160GB of storage per node. You will be using a single node for this lab, but the type and number of nodes in a Redshift cluster can be changed at any time to provide extra storage and faster data processing.
+
+Scroll down to the Database configurations section, then configure:
+Master user name: 
+master
+Master user password: 
+Redshift123
+
+Expand  Cluster permissions, then configure:
+Available IAM roles: Redshift-Role
+Click Associate IAM role
+Next to Additional configurations, click the slider to not use the defaults.
+
+Expand  Network and security, configure:
+
+Virtual private cloud (VPC) Lab VPC
+VPC security groups:
+Select Redshift Security Group
+Remove Default
+Expand  Database configurations, configure:
